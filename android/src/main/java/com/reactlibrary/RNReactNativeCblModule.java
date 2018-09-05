@@ -338,7 +338,7 @@ public class RNReactNativeCblModule extends ReactContextBaseJavaModule implement
   }
 
   @ReactMethod
-  public void startReplication(String remoteUrl, String facebookToken, Promise promise) {
+  public void startReplication(String remoteUrl, String facebookToken, String cookie, Promise promise) {
     try {
       URL url = new URL(remoteUrl);
       Replication push = this.db.createPushReplication(url);
@@ -349,6 +349,12 @@ public class RNReactNativeCblModule extends ReactContextBaseJavaModule implement
         Authenticator auth = AuthenticatorFactory.createFacebookAuthenticator(facebookToken);
         push.setAuthenticator(auth);
         pull.setAuthenticator(auth);
+      }
+      if(cookie != null && cookie != '') {
+        Map<String, Object> headers = new HashMap<>();
+        headers.put("cookie",cookie);
+        push.setHeaders(headers);
+        pull.setHeaders(headers);
       }
       push.start();
       pull.start();

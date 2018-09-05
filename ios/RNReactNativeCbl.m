@@ -254,9 +254,18 @@ RCT_EXPORT_METHOD(destroyLiveQuery:(nonnull NSString*)uuid
 
 RCT_EXPORT_METHOD(startReplication:(NSString*)remoteUrl
                   facebookToken:(NSString*)facebookToken
+                  cookie:(NSString*)cookie
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
+    if(!_push) {
+        [push stop];
+        _push = nil;
+    }
+    if(!_pull) {
+        [_pull stop];
+        _pull = nil;
+    }
     NSURL* url = [NSURL URLWithString:remoteUrl];
     CBLReplication *push = [_db createPushReplication: url];
     CBLReplication *pull = [_db createPullReplication: url];
@@ -265,6 +274,10 @@ RCT_EXPORT_METHOD(startReplication:(NSString*)remoteUrl
         id<CBLAuthenticator> auth;
         auth = [CBLAuthenticator facebookAuthenticatorWithToken:facebookToken];
         push.authenticator = pull.authenticator = auth;
+    }
+    if (cookie != nil && cookie != "") {
+        push.headers = @{ @"cookie" : cookie };
+        pull.headers = @{ @"cookie" : cookie };
     }
     [push start];
     [pull start];
