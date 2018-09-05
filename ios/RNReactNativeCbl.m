@@ -259,7 +259,7 @@ RCT_EXPORT_METHOD(startReplication:(NSString*)remoteUrl
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
     if(!_push) {
-        [push stop];
+        [_push stop];
         _push = nil;
     }
     if(!_pull) {
