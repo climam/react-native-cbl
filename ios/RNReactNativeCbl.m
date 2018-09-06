@@ -11,7 +11,17 @@ RCT_EXPORT_MODULE(RNReactNativeCbl)
 
 - (dispatch_queue_t)methodQueue
 {
-    return dispatch_get_main_queue();
+    return getQueue();
+}
+
+static dispatch_queue_t getQueue()
+{
+    static dispatch_queue_t queue;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        queue = dispatch_queue_create("com.reactnative.cbl", DISPATCH_QUEUE_SERIAL);
+    });
+    return queue;
 }
 
 - (NSArray<NSString *> *)supportedEvents {
@@ -25,6 +35,7 @@ RCT_EXPORT_METHOD(openDb:(nonnull NSString*)name
 {
     if (!_db) {
         CBLManager* manager = [CBLManager sharedInstance];
+        manager.dispatchQueue = getQueue();
         if (!manager) {
             reject(@"no_manager", @"Cannot create Manager instance", nil);
             return;
