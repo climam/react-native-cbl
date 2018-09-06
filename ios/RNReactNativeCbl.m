@@ -1,6 +1,5 @@
 #import "RNReactNativeCbl.h"
 #import <Couchbaselite/CouchbaseLite.h>
-#import "CBLRegisterJSViewCompiler.h"
 #import <AssetsLibrary/AssetsLibrary.h>
 #import <MobileCoreServices/MobileCoreServices.h>
 #import "RCTUIManager.h"
@@ -25,7 +24,6 @@ RCT_EXPORT_METHOD(openDb:(nonnull NSString*)name
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
     if (!_db) {
-        CBLRegisterJSViewCompiler();
         CBLManager* manager = [CBLManager sharedInstance];
         if (!manager) {
             reject(@"no_manager", @"Cannot create Manager instance", nil);
@@ -47,6 +45,12 @@ RCT_EXPORT_METHOD(openDb:(nonnull NSString*)name
                                                      selector: @selector(databaseChanged:)
                                                          name: kCBLDatabaseChangeNotification
                                                        object: _db];
+            CBLView* getByDocTypeView = [_db viewNamed: @"getByDocType"];
+            [getByDocTypeView setMapBlock: MAPBLOCK({
+                if(!doc[@"_deleted"] && !doc[@"_removed"] && doc[@"docType"] && (!doc[@"isDeleted"] || doc[@"isDeleted"] != true)) {
+                    emit(doc[@"docType"], doc);
+                }
+            }) version: @"4"];
             resolve(@"ok");
         }
     } else {
@@ -59,7 +63,7 @@ RCT_EXPORT_METHOD(getDocument:(nonnull NSString*)docId
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
     CBLDocument* doc = [_db documentWithID:docId];
-    if (doc) {
+    if (doc && doc.currentRevision != nil) {
         resolve( [self serializeDocument:doc] );
     } else {
         reject( @"document_not_found", @"Document not found", nil );
@@ -241,14 +245,16 @@ RCT_EXPORT_METHOD(destroyLiveQuery:(nonnull NSString*)uuid
 {
     NSMutableDictionary *properties = [[NSMutableDictionary alloc] initWithDictionary:document.properties];
     NSDictionary *attachments = [properties objectForKey:@"_attachments"];
-    NSMutableDictionary *mappedAttachments = [[NSMutableDictionary alloc] initWithCapacity:attachments.count];
-    for(id key in attachments) {
-        NSMutableDictionary *attData = [[NSMutableDictionary alloc] initWithDictionary:[attachments objectForKey:key]];
-        NSString *attUrl = [document.currentRevision attachmentNamed:key].contentURL.absoluteString;
-        [attData setObject:attUrl forKey:@"url"];
-        [mappedAttachments setObject:attData forKey:key];
+    if(attachments) {
+        NSMutableDictionary *mappedAttachments = [[NSMutableDictionary alloc] initWithCapacity:attachments.count];
+        for(id key in attachments) {
+            NSMutableDictionary *attData = [[NSMutableDictionary alloc] initWithDictionary:[attachments objectForKey:key]];
+            NSString *attUrl = [document.currentRevision attachmentNamed:key].contentURL.absoluteString;
+            [attData setObject:attUrl forKey:@"url"];
+            [mappedAttachments setObject:attData forKey:key];
+        }
+        [properties setObject:mappedAttachments forKey:@"_attachments"];
     }
-    [properties setObject:mappedAttachments forKey:@"_attachments"];
     return properties;
 }
 
@@ -275,7 +281,7 @@ RCT_EXPORT_METHOD(startReplication:(NSString*)remoteUrl
         auth = [CBLAuthenticator facebookAuthenticatorWithToken:facebookToken];
         push.authenticator = pull.authenticator = auth;
     }
-    if (cookie != nil && cookie != "") {
+    if (cookie != nil && cookie != @"") {
         push.headers = @{ @"cookie" : cookie };
         pull.headers = @{ @"cookie" : cookie };
     }

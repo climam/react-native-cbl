@@ -34,7 +34,6 @@ import com.facebook.react.bridge.ReadableMap;
 import com.couchbase.lite.Manager;
 import com.couchbase.lite.CouchbaseLiteException;
 import com.couchbase.lite.util.ZipUtils;
-import com.couchbase.lite.javascript.JavaScriptViewCompiler;
 import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
@@ -83,7 +82,6 @@ public class RNReactNativeCblModule extends ReactContextBaseJavaModule implement
   public void openDb(String name, Boolean installPrebuildDb, Promise promise) {
     if (this.db == null) {
       try {
-        View.setCompiler(new JavaScriptViewCompiler());
         Manager manager = new Manager(new AndroidContext(mReactContext.getApplicationContext()), Manager.DEFAULT_OPTIONS);
         if (installPrebuildDb) {
           Database db = manager.getExistingDatabase(name);
@@ -93,6 +91,17 @@ public class RNReactNativeCblModule extends ReactContextBaseJavaModule implement
         }
         this.db = manager.getDatabase(name);
         this.db.addChangeListener(this);
+
+        // Create a view and register its map function:
+        View getByDocTypeView = database.getView("getByDocType");
+        getByDocTypeView.setMap(new Mapper() {
+          @Override
+          public void map(Map<String, Object> document, Emitter emitter) {
+            if(!document.get("_deleted") && !document.get("_removed")  && document.get("docType") && (!document.get("isDeleted") || document.get("isDeleted") != true)) {
+              emitter.emit(document.get("docType"), document);
+            }
+          }
+        }, "1");
         promise.resolve(null);
       } catch (IOException | CouchbaseLiteException e) {
         promise.reject("open_database", "Can not open database", e);
@@ -105,7 +114,7 @@ public class RNReactNativeCblModule extends ReactContextBaseJavaModule implement
   @ReactMethod
   public void getDocument(String docId, Promise promise) {
     Document doc = this.db.getExistingDocument(docId);
-    if (doc == null) {
+    if (doc == null || doc.getCurrentRevision() == null) {
       promise.reject("update_document", "Can not find document");
     } else {
       promise.resolve( ConversionUtil.toWritableMap( this.serializeDocument(doc) ) );
