@@ -25,7 +25,7 @@ import javax.annotation.Nullable;
 /**
  * Helper utilities to convert from react-native types to POJOs
  */
-/* package */ final class ConversionUtil {
+/* package */ public final class ConversionUtil {
     /**
      * toObject extracts a value from a {@link ReadableMap} by its key,
      * and returns a POJO representing that object.

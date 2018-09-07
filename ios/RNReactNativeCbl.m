@@ -25,7 +25,7 @@ static dispatch_queue_t getQueue()
 }
 
 - (NSArray<NSString *> *)supportedEvents {
-    return @[@"liveQueryChange", @"liveDocumentChange"];
+    return @[@"liveQueryChange", @"liveDocumentChange", @"dataChange"];
 }
 
 RCT_EXPORT_METHOD(openDb:(nonnull NSString*)name
@@ -56,12 +56,6 @@ RCT_EXPORT_METHOD(openDb:(nonnull NSString*)name
                                                      selector: @selector(databaseChanged:)
                                                          name: kCBLDatabaseChangeNotification
                                                        object: _db];
-            CBLView* getByDocTypeView = [_db viewNamed: @"getByDocType"];
-            [getByDocTypeView setMapBlock: MAPBLOCK({
-                if(!doc[@"_deleted"] && !doc[@"_removed"] && doc[@"docType"] && (!doc[@"isDeleted"] || doc[@"isDeleted"] != true)) {
-                    emit(doc[@"docType"], doc);
-                }
-            }) version: @"4"];
             resolve(@"ok");
         }
     } else {
@@ -156,6 +150,16 @@ RCT_EXPORT_METHOD(destroyLiveDocument:(nonnull NSString*)uuid
     resolve(@"ok");
 }
 
+RCT_EXPORT_METHOD(getAllDocuments:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+    CBLQuery* query = [self.db createAllDocumentsQuery];
+    NSError *error;
+    CBLQueryEnumerator *enumerator = [query run:&error];
+    NSArray *data = [self getQueryResults:enumerator];
+    resolve(data);
+}
+
 RCT_EXPORT_METHOD(query:(nonnull NSString*)view
                   params:(NSDictionary *)params
                   resolver:(RCTPromiseResolveBlock)resolve
@@ -216,6 +220,7 @@ RCT_EXPORT_METHOD(destroyLiveQuery:(nonnull NSString*)uuid
 }
 
 - (void)databaseChanged:(NSNotification*)n {
+    [self sendEventWithName:@"dataChange" body:nil];
     for (CBLDatabaseChange* change in n.userInfo[@"changes"]) {
         for (id key in _liveQueries) {
             NSArray *rows = [((CBLLiveQuery *)[_liveQueries objectForKey:key]).rows allObjects];

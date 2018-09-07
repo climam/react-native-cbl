@@ -40,6 +40,7 @@ import com.facebook.react.modules.core.DeviceEventManagerModule;
 import com.facebook.react.uimanager.NativeViewHierarchyManager;
 import com.facebook.react.uimanager.UIBlock;
 import com.facebook.react.uimanager.UIManagerModule;
+import com.reactlibrary.tasks.CBLGetAllDocumentsAsyncTask;
 
 import java.io.FileNotFoundException;
 import java.io.InputStream;
@@ -91,17 +92,6 @@ public class RNReactNativeCblModule extends ReactContextBaseJavaModule implement
         }
         this.db = manager.getDatabase(name);
         this.db.addChangeListener(this);
-
-        // Create a view and register its map function:
-        View getByDocTypeView = database.getView("getByDocType");
-        getByDocTypeView.setMap(new Mapper() {
-          @Override
-          public void map(Map<String, Object> document, Emitter emitter) {
-            if(!document.get("_deleted") && !document.get("_removed")  && document.get("docType") && (!document.get("isDeleted") || document.get("isDeleted") != true)) {
-              emitter.emit(document.get("docType"), document);
-            }
-          }
-        }, "1");
         promise.resolve(null);
       } catch (IOException | CouchbaseLiteException e) {
         promise.reject("open_database", "Can not open database", e);
@@ -252,9 +242,18 @@ public class RNReactNativeCblModule extends ReactContextBaseJavaModule implement
   }
 
   @ReactMethod
+  public void getAllDocuments(Promise promise) {
+    Query query = this.db.createAllDocumentsQuery();
+    new CBLGetAllDocumentsAsyncTask(promise, query).execute();
+  }
+
+  @ReactMethod
   public void query(String view, ReadableMap params, Promise promise) {
     View dbview = this.getView(view);
     Query query = dbview.createQuery();
+
+    this.setQueryParams(query, params);
+
     try {
       QueryEnumerator result = query.run();
       promise.resolve( ConversionUtil.toWritableArray( this.getQueryResults(result).toArray() ) );
@@ -292,6 +291,7 @@ public class RNReactNativeCblModule extends ReactContextBaseJavaModule implement
   }
 
   public void changed(Database.ChangeEvent event) {
+    this.sendEvent("dataChange", null);
     for (DocumentChange change : event.getChanges()) {
       for (String queryUuid : this.liveQueries.keySet()) {
         QueryEnumerator rows = this.liveQueries.get(queryUuid).getRows();
@@ -359,7 +359,7 @@ public class RNReactNativeCblModule extends ReactContextBaseJavaModule implement
         push.setAuthenticator(auth);
         pull.setAuthenticator(auth);
       }
-      if(cookie != null && cookie != '') {
+      if(cookie != null && cookie != "") {
         Map<String, Object> headers = new HashMap<>();
         headers.put("cookie",cookie);
         push.setHeaders(headers);
