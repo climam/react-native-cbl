@@ -220,8 +220,8 @@ RCT_EXPORT_METHOD(destroyLiveQuery:(nonnull NSString*)uuid
 }
 
 - (void)databaseChanged:(NSNotification*)n {
-    [self sendEventWithName:@"dataChange" body:nil];
     for (CBLDatabaseChange* change in n.userInfo[@"changes"]) {
+        [self sendEventWithName:@"dataChange" body:@{ @"id": change.documentID }];
         for (id key in _liveQueries) {
             NSArray *rows = [((CBLLiveQuery *)[_liveQueries objectForKey:key]).rows allObjects];
             NSUInteger index = [rows indexOfObjectPassingTest:^BOOL(CBLQueryRow *obj, NSUInteger idx, BOOL *stop) {
