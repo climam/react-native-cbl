@@ -291,8 +291,10 @@ public class RNReactNativeCblModule extends ReactContextBaseJavaModule implement
   }
 
   public void changed(Database.ChangeEvent event) {
-    this.sendEvent("dataChange", null);
     for (DocumentChange change : event.getChanges()) {
+      WritableMap dataChageParams = Arguments.createMap();
+      dataChageParams.putString("id", change.getDocumentId());
+      this.sendEvent("dataChange", dataChageParams);
       for (String queryUuid : this.liveQueries.keySet()) {
         QueryEnumerator rows = this.liveQueries.get(queryUuid).getRows();
         while (rows.hasNext()) {
