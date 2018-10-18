@@ -291,7 +291,6 @@ RCT_EXPORT_METHOD(startReplication:(NSString*)remoteUrl
     NSURL* url = [NSURL URLWithString:remoteUrl];
     CBLReplication *push = [_db createPushReplication: url];
     CBLReplication *pull = [_db createPullReplication: url];
-    push.continuous = pull.continuous = YES;
     if (facebookToken != nil) {
         id<CBLAuthenticator> auth;
         auth = [CBLAuthenticator facebookAuthenticatorWithToken:facebookToken];
@@ -301,8 +300,8 @@ RCT_EXPORT_METHOD(startReplication:(NSString*)remoteUrl
         push.headers = @{ @"cookie" : cookie };
         pull.headers = @{ @"cookie" : cookie };
     }
-    [push start];
     [pull start];
+    [push start];
     _push = push;
     _pull = pull;
     resolve(@"ok");

@@ -354,8 +354,6 @@ public class RNReactNativeCblModule extends ReactContextBaseJavaModule implement
       URL url = new URL(remoteUrl);
       Replication push = this.db.createPushReplication(url);
       Replication pull = this.db.createPullReplication(url);
-      pull.setContinuous(true);
-      push.setContinuous(true);
       if (facebookToken != null) {
         Authenticator auth = AuthenticatorFactory.createFacebookAuthenticator(facebookToken);
         push.setAuthenticator(auth);
@@ -367,8 +365,8 @@ public class RNReactNativeCblModule extends ReactContextBaseJavaModule implement
         push.setHeaders(headers);
         pull.setHeaders(headers);
       }
-      push.start();
       pull.start();
+      push.start();
       promise.resolve(null);
     } catch (MalformedURLException e) {
       promise.reject("start_replication", "Malformed remote URL", e);
